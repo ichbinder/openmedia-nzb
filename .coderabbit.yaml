@@ -1,0 +1,19 @@
+reviewers:
+  - auto
+reviews:
+  profile: "chill"
+  path_instructions:
+    - path: "docker-compose*.yml"
+      instructions: |
+        Check for:
+        - No hardcoded credentials
+        - Correct SMB mount options
+        - Read-only mounts where appropriate
+    - path: "nginx.conf"
+      instructions: |
+        Check for:
+        - Only .nzb files served
+        - No directory listing
+        - Security headers present
+chat:
+  auto_reply: true
