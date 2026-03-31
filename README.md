@@ -1,68 +1,80 @@
-# OpenMedia NZB
+# openmedia-nzb
 
-Minimale Datei-Storage API für NZB-Dateien — läuft auf deinem NAS.
-
-> 📚 **Gesamtdokumentation:** [openmedia-docs](https://github.com/ichbinder/openmedia-docs)
-
-## Tech Stack
-
-- **Runtime:** Node.js + TypeScript
-- **Framework:** Express 5
-- **Auth:** JWT (shared secret mit openmedia-api)
-- **Storage:** Filesystem
-- **Tests:** Vitest + Supertest (15 Tests)
+Microservice der NZB-Dateien per Hash ausliefert. Die NZB-Dateien liegen auf einem NAS (SMB/CIFS-Freigabe) und werden per Docker-Volume gemountet.
 
 ## Architektur
 
 ```
-openmedia-api ──JWT──▶ openmedia-nzb ──▶ Filesystem
-                           │
-                      /data/nzb/
-                      ├── abc123...sha256.nzb
-                      ├── def456...sha256.nzb
-                      └── ... (7256 Dateien)
+Download-Container (Hetzner VPS)
+       │
+       │  GET /nzb/4532860a...nzb
+       ▼
+┌──────────────────┐     ┌─────────────────┐
+│ openmedia-nzb    │────►│ NAS (SMB/CIFS)  │
+│ (nginx)          │     │ /nzb-files/     │
+│ Port 3001        │     │ {hash}.nzb      │
+└──────────────────┘     └─────────────────┘
+       ▲
+       │  docker volume (type: cifs)
+       │  kein manuelles Mounten nötig
 ```
 
-Kein eigenes Brain — nur ein authentifizierter Datei-Safe. openmedia-api entscheidet was gespeichert/abgerufen wird, openmedia-nzb führt aus.
+## Voraussetzungen
+
+`cifs-utils` muss auf dem Docker-Host installiert sein:
+
+```bash
+# Debian/Ubuntu
+sudo apt-get install -y cifs-utils
+
+# RHEL/Rocky
+sudo dnf install -y cifs-utils
+```
 
 ## Setup
 
 ```bash
-npm install
-cp .env.example .env   # JWT_SECRET muss mit openmedia-api übereinstimmen!
-npm run dev             # → http://localhost:4100
+cp .env.example .env
+# .env ausfüllen mit NAS-Daten
+
+docker compose up -d
 ```
 
-## API Endpoints
+## Environment Variables
 
-Alle Endpoints (außer `/health`) erfordern JWT via `Authorization: Bearer <token>`.
+| Variable | Beschreibung | Beispiel |
+|----------|-------------|---------|
+| `SMB_HOST` | IP oder DNS-Name des NAS | `192.168.1.100` |
+| `SMB_SHARE` | Name der SMB-Freigabe | `nzb-files` |
+| `SMB_USER` | Benutzername für die Freigabe | `nzb-reader` |
+| `SMB_PASSWORD` | Passwort für die Freigabe | `secret` |
+| `SMB_VERSION` | SMB-Protokollversion | `3.0` |
+| `NZB_PORT` | Port für den HTTP-Service | `3001` |
 
-| Methode | Endpoint | Beschreibung |
-|---|---|---|
-| GET | `/health` | Health-Check (ohne Auth) |
-| GET | `/files` | Alle gespeicherten Hashes auflisten |
-| GET | `/files/:hash` | NZB-Datei herunterladen |
-| HEAD | `/files/:hash` | Prüfen ob Datei existiert (ohne Download) |
-| PUT | `/files/:hash` | NZB-Datei speichern |
-| DELETE | `/files/:hash` | NZB-Datei löschen |
+## API
 
-## Sicherheit
+| Method | Path | Beschreibung |
+|--------|------|-------------|
+| GET | `/nzb/{hash}.nzb` | NZB-Datei als XML ausliefern |
+| GET | `/health` | Healthcheck |
 
-- **JWT-Auth:** Token wird von openmedia-api ausgestellt, hier nur validiert
-- **Path Traversal Protection:** Hash wird auf `[a-f0-9]+` validiert
-- **Kein direkter Internetzugang nötig:** Läuft im lokalen Netzwerk
+## Dateien auf dem NAS
 
-## Tests
+Die NZB-Dateien liegen als `{hash}.nzb` im SMB-Share:
 
-```bash
-npm test          # 15 Integration Tests
-npm run test:watch
+```
+/nzb-files/
+├── 4532860a4bb9820f...nzb    (Matrix 1080p)
+├── b8e4d1a2c5f7890d...nzb    (Matrix 4K)
+├── ...
+└── 7256 NZB-Dateien total
 ```
 
-## Umgebungsvariablen
+Die Dateien wurden aus MongoDB exportiert (`scripts/export-nzbs-from-mongo.sh` im openmedia-api Repo).
 
-| Variable | Beschreibung | Default |
-|---|---|---|
-| `JWT_SECRET` | Muss mit openmedia-api übereinstimmen | (required) |
-| `NZB_STORAGE_DIR` | Pfad zum NZB-Speicherordner | `./data/nzb` |
-| `PORT` | Server Port | `4100` |
+## Security
+
+- NZB-Service ist **nicht öffentlich** — nur aus dem internen Netz / VPN erreichbar
+- SMB-Credentials in `.env` (nicht im Repo)
+- Read-only Mount auf das NAS
+- Kein Schreibzugriff auf NZB-Dateien
