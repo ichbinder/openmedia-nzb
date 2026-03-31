@@ -1,0 +1,23 @@
+services:
+  nzb-service:
+    image: nginx:alpine
+    container_name: openmedia-nzb
+    ports:
+      - "${NZB_PORT:-3001}:80"
+    volumes:
+      - nzb-files:/usr/share/nginx/html/nzb:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  nzb-files:
+    driver: local
+    driver_opts:
+      type: cifs
+      device: "//${SMB_HOST}/${SMB_SHARE}"
+      o: "username=${SMB_USER},password=${SMB_PASSWORD},vers=${SMB_VERSION:-3.0},uid=1000,gid=1000,file_mode=0444,dir_mode=0555"

@@ -1,31 +1,19 @@
-# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
-language: "de-DE"
+reviewers:
+  - auto
 reviews:
   profile: "chill"
-  request_changes_workflow: true
-  high_level_summary: true
-  poem: false
-  review_status: true
-  collapse_walkthrough: true
-  path_filters:
-    - "!dist/**"
-    - "!node_modules/**"
-    - "!package-lock.json"
-    - "!data/**"
   path_instructions:
-    - path: "src/routes/**"
-      instructions: >-
-        Review for security: path traversal prevention, auth checks on all routes,
-        proper error handling, no information leakage. All file operations must
-        validate the hash format (hex only) before constructing file paths.
-    - path: "src/middleware/**"
-      instructions: >-
-        Review JWT validation for security: proper error responses, no token
-        information leakage, correct handling of expired/invalid tokens.
-  tools:
-    github-checks:
-      enabled: true
-      timeout_ms: 90000
-  auto_review:
-    enabled: true
-    drafts: false
+    - path: "docker-compose*.yml"
+      instructions: |
+        Check for:
+        - No hardcoded credentials
+        - Correct SMB mount options
+        - Read-only mounts where appropriate
+    - path: "nginx.conf"
+      instructions: |
+        Check for:
+        - Only .nzb files served
+        - No directory listing
+        - Security headers present
+chat:
+  auto_reply: true
