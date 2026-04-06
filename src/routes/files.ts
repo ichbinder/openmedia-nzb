@@ -99,10 +99,18 @@ router.put("/:hash", async (req: AuthRequest, res: Response) => {
 
     await ensureStorageDir();
 
-    // Read raw body
+    // Read raw body with size limit
+    const MAX_NZB_BYTES = 50 * 1024 * 1024; // 50 MB
     const chunks: Buffer[] = [];
+    let total = 0;
     for await (const chunk of req) {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      total += buf.length;
+      if (total > MAX_NZB_BYTES) {
+        res.status(413).json({ error: "Datei zu groß (max 50 MB)." });
+        return;
+      }
+      chunks.push(buf);
     }
     const content = Buffer.concat(chunks);
 

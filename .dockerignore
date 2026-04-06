@@ -1,0 +1,11 @@
+node_modules
+dist
+data
+*.md
+.env
+.env*
+.git
+.gitignore
+docker-compose*.yml
+nginx.conf
+vitest.config.ts
