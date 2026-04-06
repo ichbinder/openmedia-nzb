@@ -14,9 +14,6 @@ services:
       timeout: 5s
       retries: 3
     restart: unless-stopped
-    depends_on:
-      api:
-        condition: service_healthy
 
   # Node.js API — handles PUT/DELETE /files/{hash} (read-write)
   api:
